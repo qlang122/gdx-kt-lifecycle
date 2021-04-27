@@ -56,7 +56,7 @@ internal class LiveDataScopeImpl<T>(
 ) : LiveDataScope<T> {
 
     override val latestValue: T?
-        get() = target.getValue()
+        get() = target.value
 
     // use `liveData` provided context + main dispatcher to communicate with the target
     // LiveData. This gives us main thread safety as well as cancellation cooperation
@@ -69,14 +69,14 @@ internal class LiveDataScopeImpl<T>(
 
     override suspend fun emit(value: T) = withContext(coroutineContext) {
         target.clearSource()
-        target.setValue(value)
+        target.value = value
     }
 }
 
 internal suspend fun <T> MediatorLiveData<T>.addDisposableSource(
         source: LiveData<T>
 ): EmittedSource = withContext(Dispatchers.Main.immediate) {
-    addSource(source, Observer { setValue(it) })
+    addSource(source, Observer { value = it })
     EmittedSource(source, this@addDisposableSource)
 }
 

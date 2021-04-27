@@ -3,7 +3,7 @@ package com.qlang.gdxkt.lifecycle
 object Transformations {
     fun <X, Y> map(source: LiveData<X>, block: (X?) -> Y): LiveData<Y> {
         val result: MediatorLiveData<Y> = MediatorLiveData()
-        result.addSource(source, Observer { result.setValue(block(it)) })
+        result.addSource(source, Observer { result.value = block(it) })
         return result
     }
 
@@ -21,7 +21,7 @@ object Transformations {
                 }
                 mSource = newLiveData
                 if (mSource != null) {
-                    result.addSource(mSource!!, Observer { result.setValue(it) })
+                    result.addSource(mSource!!, Observer { result.value = it })
                 }
             }
         })
