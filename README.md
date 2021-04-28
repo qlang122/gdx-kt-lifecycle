@@ -5,6 +5,12 @@ lifecycle be use in libgdx game engine, and simpler and faster data management. 
 code make use of kotlin.
 
 ## USE
+```
+dependencies {
+	implementation 'com.github.qlang122:gdx-kt-lifecycle:1.0.0'
+}
+```
+
 1.should be make lifecycle call from game screen lifecycle.
 ```kotlin
 open class LifecycleScreenAdapter : ScreenAdapter(), LifecycleOwner {
