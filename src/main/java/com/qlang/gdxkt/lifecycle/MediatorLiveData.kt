@@ -20,7 +20,7 @@ open class MediatorLiveData<T> : MutableLiveData<T>() {
     fun <S> addSource(source: LiveData<S>, onChanged: Observer<in S>) {
         val e: Source<S> = Source(source, onChanged)
         val existing: Source<*>? = mSources.putIfAbsent(source, e)
-        require(!(existing != null && existing.mObserver !== onChanged)) { "This source was already added with the different observer" }
+        require(!(existing != null && existing.mObserver != onChanged)) { "This source was already added with the different observer" }
         if (existing != null) {
             return
         }

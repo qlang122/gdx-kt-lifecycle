@@ -25,7 +25,6 @@ class LifecycleRegistry : Lifecycle {
         val initialState: State = if (mState == State.DISPOSED) State.DISPOSED else State.INITIALIZED
         val statefulObserver = ObserverWithState(observer, initialState)
         val previous = mObserverMap.putIfAbsent(observer, statefulObserver)
-//        System.out.println("------->$initialState $observer $previous ")
         if (previous != null) {
             return
         }
@@ -193,7 +192,7 @@ class LifecycleRegistry : Lifecycle {
 
         private fun getStateAfter(event: Event): State {
             return when (event) {
-                Event.ON_SHOW, Event.ON_HIDE -> State.INITIALIZED
+                Event.ON_SHOW, Event.ON_HIDE -> State.CREATED
                 Event.ON_PAUSE -> State.CREATED
                 Event.ON_RESUME -> State.RESUMED
                 Event.ON_DISPOSE -> State.DISPOSED

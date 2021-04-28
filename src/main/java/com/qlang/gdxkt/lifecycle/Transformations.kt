@@ -16,13 +16,9 @@ object Transformations {
                 if (mSource == newLiveData) {
                     return
                 }
-                if (mSource != null) {
-                    result.removeSource(mSource!!)
-                }
+                mSource?.let { result.removeSource(it) }
                 mSource = newLiveData
-                if (mSource != null) {
-                    result.addSource(mSource!!, Observer { result.value = it })
-                }
+                mSource?.let { result.addSource(it, Observer { result.value = it }) }
             }
         })
         return result

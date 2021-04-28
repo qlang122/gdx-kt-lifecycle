@@ -38,7 +38,6 @@ abstract class LiveData<T> {
         }
         val wrapper = LifecycleBoundObserver(owner, observer)
         val existing = mObservers.putIfAbsent(observer, wrapper)
-        System.out.println("------><>>>$this ${mObservers.size()}")
         require(!(existing != null && !existing.isAttachedTo(owner))) {
             ("Cannot add the same observer with different lifecycles")
         }
@@ -61,7 +60,6 @@ abstract class LiveData<T> {
     }
 
     fun removeObserver(observer: Observer<in T>) {
-        System.out.println("---removeObserver---")
         val removed = mObservers.remove(observer) ?: return
         removed.detachObserver()
         removed.activeStateChanged(false)
@@ -125,11 +123,8 @@ abstract class LiveData<T> {
                 considerNotify(initiator)
                 initiator = null
             } else {
-                System.out.println("-------->>$this ${mObservers.size()}")
                 val iterator: Iterator<Map.Entry<Observer<in T>, ObserverWrapper>> = mObservers.iteratorWithAdditions()
-                System.out.println("-------->>$iterator")
                 while (iterator.hasNext()) {
-                    System.out.println("-------->>>")
                     considerNotify(iterator.next().value)
                     if (mDispatchInvalidated) {
                         break
@@ -182,11 +177,10 @@ abstract class LiveData<T> {
 
     internal inner class LifecycleBoundObserver(val mOwner: LifecycleOwner, observer: Observer<in T>) : ObserverWrapper(observer), LifecycleEventObserver {
         override fun shouldBeActive(): Boolean {
-            return mOwner.getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.INITIALIZED)
+            return mOwner.getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.CREATED)
         }
 
         override fun onStateChanged(source: LifecycleOwner?, event: Lifecycle.Event?) {
-            System.out.println("------------>>>>>${mOwner.getLifecycle().getCurrentState()}")
             if (mOwner.getLifecycle().getCurrentState() == Lifecycle.State.DISPOSED) {
                 removeObserver(mObserver)
                 return
