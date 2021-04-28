@@ -32,12 +32,13 @@ abstract class LiveData<T> {
         mVersion = START_VERSION + 1
     }
 
-    open fun observe(owner: LifecycleOwner, observer: Observer<in T>) {
+    fun observe(owner: LifecycleOwner, observer: Observer<in T>) {
         if (owner.getLifecycle().getCurrentState() == Lifecycle.State.DISPOSED) {
             return
         }
         val wrapper = LifecycleBoundObserver(owner, observer)
         val existing = mObservers.putIfAbsent(observer, wrapper)
+        System.out.println("------><>>>$this ${mObservers.size()}")
         require(!(existing != null && !existing.isAttachedTo(owner))) {
             ("Cannot add the same observer with different lifecycles")
         }
@@ -47,7 +48,7 @@ abstract class LiveData<T> {
         owner.getLifecycle().addObserver(wrapper)
     }
 
-    open fun observeForever(observer: Observer<in T>) {
+    fun observeForever(observer: Observer<in T>) {
         val wrapper = AlwaysActiveObserver(observer)
         val existing = mObservers.putIfAbsent(observer, wrapper)
         require(existing !is LifecycleBoundObserver) {
@@ -59,13 +60,14 @@ abstract class LiveData<T> {
         wrapper.activeStateChanged(true)
     }
 
-    open fun removeObserver(observer: Observer<in T>) {
+    fun removeObserver(observer: Observer<in T>) {
+        System.out.println("---removeObserver---")
         val removed = mObservers.remove(observer) ?: return
         removed.detachObserver()
         removed.activeStateChanged(false)
     }
 
-    open fun removeObservers(owner: LifecycleOwner) {
+    fun removeObservers(owner: LifecycleOwner) {
         for ((key, value) in mObservers) {
             if (value.isAttachedTo(owner)) {
                 removeObserver(key)
@@ -110,7 +112,7 @@ abstract class LiveData<T> {
         observer.mObserver.onChanged(mData as? T?)
     }
 
-    open fun dispatchingValue(initiator: ObserverWrapper?) {
+    private fun dispatchingValue(initiator: ObserverWrapper?) {
         var initiator = initiator
         if (mDispatchingValue) {
             mDispatchInvalidated = true
@@ -123,8 +125,11 @@ abstract class LiveData<T> {
                 considerNotify(initiator)
                 initiator = null
             } else {
+                System.out.println("-------->>$this ${mObservers.size()}")
                 val iterator: Iterator<Map.Entry<Observer<in T>, ObserverWrapper>> = mObservers.iteratorWithAdditions()
+                System.out.println("-------->>$iterator")
                 while (iterator.hasNext()) {
+                    System.out.println("-------->>>")
                     considerNotify(iterator.next().value)
                     if (mDispatchInvalidated) {
                         break
@@ -181,6 +186,7 @@ abstract class LiveData<T> {
         }
 
         override fun onStateChanged(source: LifecycleOwner?, event: Lifecycle.Event?) {
+            System.out.println("------------>>>>>${mOwner.getLifecycle().getCurrentState()}")
             if (mOwner.getLifecycle().getCurrentState() == Lifecycle.State.DISPOSED) {
                 removeObserver(mObserver)
                 return
@@ -189,7 +195,7 @@ abstract class LiveData<T> {
         }
 
         override fun isAttachedTo(owner: LifecycleOwner): Boolean {
-            return mOwner === owner
+            return mOwner == owner
         }
 
         override fun detachObserver() {
@@ -210,6 +216,7 @@ abstract class LiveData<T> {
         }
 
         open fun detachObserver() {}
+
         fun activeStateChanged(newActive: Boolean) {
             if (newActive == mActive) {
                 return
