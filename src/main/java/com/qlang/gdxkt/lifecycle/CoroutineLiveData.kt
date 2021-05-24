@@ -52,7 +52,8 @@ interface LiveDataScope<T> {
 
 internal class LiveDataScopeImpl<T>(
         internal var target: CoroutineLiveData<T>,
-        context: CoroutineContext
+        context: CoroutineContext,
+        disp: CoroutineDispatcher
 ) : LiveDataScope<T> {
 
     override val latestValue: T?
@@ -60,7 +61,7 @@ internal class LiveDataScopeImpl<T>(
 
     // use `liveData` provided context + main dispatcher to communicate with the target
     // LiveData. This gives us main thread safety as well as cancellation cooperation
-    private val coroutineContext = context + Dispatchers.Main.immediate
+    private val coroutineContext = context + disp
 
     override suspend fun emitSource(source: LiveData<T>): DisposableHandle =
             withContext(coroutineContext) {
@@ -74,15 +75,17 @@ internal class LiveDataScopeImpl<T>(
 }
 
 internal suspend fun <T> MediatorLiveData<T>.addDisposableSource(
-        source: LiveData<T>
-): EmittedSource = withContext(Dispatchers.Main.immediate) {
+        source: LiveData<T>,
+        disp: CoroutineDispatcher
+): EmittedSource = withContext(disp) {
     addSource(source, Observer { value = it })
-    EmittedSource(source, this@addDisposableSource)
+    EmittedSource(source, this@addDisposableSource, disp)
 }
 
 internal class EmittedSource(
         private val source: LiveData<*>,
-        private val mediator: MediatorLiveData<*>
+        private val mediator: MediatorLiveData<*>,
+        private val disp: CoroutineDispatcher
 ) : DisposableHandle {
     // @MainThread
     private var disposed = false
@@ -91,12 +94,12 @@ internal class EmittedSource(
      * Unlike [dispose] which cannot be sync because it not a coroutine (and we do not want to
      * lock), this version is a suspend function and does not return until source is removed.
      */
-    suspend fun disposeNow() = withContext(Dispatchers.Main.immediate) {
+    suspend fun disposeNow() = withContext(disp) {
         removeSource()
     }
 
     override fun dispose() {
-        CoroutineScope(Dispatchers.Main.immediate).launch {
+        CoroutineScope(disp).launch {
             removeSource()
         }
     }
@@ -118,6 +121,7 @@ internal class BlockRunner<T>(
         private val liveData: CoroutineLiveData<T>,
         private val block: Block<T>,
         private val timeoutInMs: Long,
+        private val disp: CoroutineDispatcher,
         private val scope: CoroutineScope,
         private val onDone: () -> Unit
 ) {
@@ -134,7 +138,7 @@ internal class BlockRunner<T>(
             return
         }
         runningJob = scope.launch {
-            val liveDataScope = LiveDataScopeImpl(liveData, coroutineContext)
+            val liveDataScope = LiveDataScopeImpl(liveData, coroutineContext, disp)
             block(liveDataScope)
             onDone()
         }
@@ -144,7 +148,7 @@ internal class BlockRunner<T>(
         if (cancellationJob != null) {
             error("Cancel call cannot happen without a maybeRun")
         }
-        cancellationJob = scope.launch(Dispatchers.Main.immediate) {
+        cancellationJob = scope.launch(disp) {
             delay(timeoutInMs)
             if (!liveData.hasActiveObservers()) {
                 // one last check on active observers to avoid any race condition between starting
@@ -159,6 +163,7 @@ internal class BlockRunner<T>(
 internal class CoroutineLiveData<T>(
         context: CoroutineContext = EmptyCoroutineContext,
         timeoutInMs: Long = DEFAULT_TIMEOUT,
+        private val disp: CoroutineDispatcher = Dispatchers.Main,
         block: Block<T>
 ) : MediatorLiveData<T>() {
     private var blockRunner: BlockRunner<T>?
@@ -173,15 +178,15 @@ internal class CoroutineLiveData<T>(
         // The scope for this LiveData where we launch every block Job.
         // We default to Main dispatcher but developer can override it.
         // The supervisor job is added last to isolate block runs.
-        val scope = CoroutineScope(Dispatchers.Main.immediate + context + supervisorJob)
-        blockRunner = BlockRunner(this, block, timeoutInMs, scope) {
+        val scope = CoroutineScope(disp + context + supervisorJob)
+        blockRunner = BlockRunner(this, block, timeoutInMs, disp, scope) {
             blockRunner = null
         }
     }
 
     internal suspend fun emitSource(source: LiveData<T>): DisposableHandle {
         clearSource()
-        val newSource = addDisposableSource(source)
+        val newSource = addDisposableSource(source, disp)
         emittedSource = newSource
         return newSource
     }
@@ -206,5 +211,6 @@ internal class CoroutineLiveData<T>(
 fun <T> liveData(
         context: CoroutineContext = EmptyCoroutineContext,
         timeoutInMs: Long = DEFAULT_TIMEOUT,
+        disp: CoroutineDispatcher = Dispatchers.Main,
         @BuilderInference block: suspend LiveDataScope<T>.() -> Unit
-): LiveData<T> = CoroutineLiveData(context, timeoutInMs, block)
+): LiveData<T> = CoroutineLiveData(context, timeoutInMs, disp, block)
