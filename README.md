@@ -7,7 +7,7 @@ code make use of kotlin.
 ## USE
 ```
 dependencies {
-	implementation 'com.github.qlang122:gdx-kt-lifecycle:1.0.0'
+	implementation 'com.github.qlang122:libgdx-lifecycle-kt:1.0.0'
 }
 ```
 
